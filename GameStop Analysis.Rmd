@@ -1,0 +1,83 @@
+---
+title: "Gamestop Analysis"
+author: "Raúl Blé"
+date: "2/18/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(fig.align = 'center')
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(verbose = FALSE)
+options(tinytex.verbose = TRUE)
+
+library(gsheet)
+library(googlesheets4)
+library(tidyverse)
+library(gt)
+library(glue)
+library(dbplyr)
+library(patchwork)
+library(googledrive)
+
+
+
+```
+
+
+First Header  | Second Header
+------------- | -------------
+Content Cell  | Content Cell
+Content Cell  | Content Cell
+
+
+
+
+```{r October general, echo=FALSE}
+
+
+```
+
+
+
+```{r  fig.height= 8}
+
+num_oct <- total_oct %>% 
+  mutate(Replaced = unlist(Replaced),
+         GV = unlist(GV)) %>% 
+  select(c(-store,-install_date,-updated_on,-total_sum_of_issues_per_store))
+
+num_nov <- total_nov %>% 
+  mutate(Replaced = unlist(Replaced),
+         GV = unlist(GV)) %>% 
+  select(c(-store,-install_date, -updated_on,-total_sum_of_issues_per_store))
+
+num_dic <- total_dic %>% 
+  mutate(Replaced = unlist(Replaced),
+         GV = unlist(GV)) %>% 
+  select(c(-store,-install_date, -updated_on,-total_sum_of_issues_per_store))
+
+num_jan <- total_jan %>% 
+  mutate(Replaced = unlist(Replaced)) %>% 
+  select(c(-updated_on,-install_date,-store,-total_sum_of_issues_per_store))
+  
+  
+
+general <- num_jan +num_dic +num_nov + num_oct  
+
+Gen_plot <- reshape2::melt(general)
+
+Gen_plot %>% 
+ ggplot(aes(x = 1, value, fill = variable))+
+  theme_void()+
+  coord_flip()+
+  geom_bar(stat = 'identity', position = 'stack',color ='black')+
+  coord_polar("y", start=0)+
+  scale_fill_manual(values = c('#003f5c','#2f4b7c','#665191','#a05195','#d45087','#f95d6a','#ff7c43','#ffa600',
+                               '#d94600','#8c6500','#4312ff','#f24400','#718d00','#009866','#0894a1','#326500'))
+
+
+```
+

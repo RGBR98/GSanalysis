@@ -1,0 +1,909 @@
+---
+title: "GS Analysis October - February"
+author: "Raúl Blé"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+header-includes: 
+  - \usepackage{fancyhdr}
+output:
+   pdf_document:
+    toc: True
+    highlight: 'kate'
+    number_sections: TRUE
+editor_options: 
+mainfont: Bookman Old Style
+---
+\thispagestyle{empty}
+\pagebreak
+\newpage
+\pagenumbering{arabic} 
+\fancyhead[L]{\thepage}
+\fancyfoot[C]{Raúl Blé}
+\pagestyle{fancy}
+\addtolength{\headheight}{1.0cm}
+\pagestyle{fancyplain}
+\rhead{\includegraphics[height=1cm]{`r here::here('img','gamestop.png')`}}
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(fig.align = 'center')
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(verbose = FALSE)
+options(tinytex.verbose = TRUE)
+
+#toc = table of contents (ese se usa para que tu documento tenga tabla de contenido)
+#number_sections: TRUE (este pone el numero a todos los titulos que vas poniendo)
+
+library(gsheet)
+library(googlesheets4)
+library(tidyverse)
+library(gt)
+library(glue)
+library(dbplyr)
+library(patchwork)
+library(googledrive)
+library(ggplot2)
+library(ggpubr)
+library(stargazer)
+
+
+
+gs4_auth_configure(api_key = "AIzaSyBWucA9gWhDyxrMwv7ZZg16wBlmLqiFtk0")
+gs4_deauth()
+
+
+```
+
+
+
+# Introduction 
+
+Our full analysis (dated from October 2020 to February 2021) aims to present the amount of hardware that has been ordered until today, how many escalations have been made to GV, the total of issues that we have had and the proportional number of issues that an specific issue can present.
+
+The  pie charts  presented are being primarily occupied by two issues: dock is not recognizing peripherals nor stuck payments. The rest of the issues we encountered are listed on the graphics below with each color corresponding a part of the pie chart.
+
+This report will be an explanation of all the problems that the SD has been experiencing on a day to day basis, and the new difficulties that the surfaces are bringing up to the table.
+
+All data for this document was taken from the Compucom Service Now portal and from our internal store tracker. We imported all the store’s information and analyzed one by one to determine each type of issue and possible solution. 
+
+I would like to thank Ricardo Rangel, Saúl Velazquez and Pablo Hernández for all their help and support during the development of this report for GameStop.
+
+With no further ado, let’s begin.
+
+\pagebreak
+\newpage
+
+# Stores installed on October
+
+```{r October plot}
+
+
+
+
+issue <- read_sheet('docs.google.com/spreadsheets/d/1MPzKbtO-_N2hDJONArWLV0Mo8O-l4On1dwU5i7KscD0/edit#gid=0') #The actual sheet
+oct_data <- read_sheet('https://docs.google.com/spreadsheets/d/1MPzKbtO-_N2hDJONArWLV0Mo8O-l4On1dwU5i7KscD0/edit#gid=1126889633'
+                       ,sheet = 2 ) 
+
+  
+total_oct <- oct_data %>% 
+  na.omit() %>% 
+  janitor::clean_names() %>% 
+rename(
+       'BSOD' = blue_screen_of_death,
+       'Dock not recognizing peripherals' = dock_issues_not_recognizing_peripherals,
+       'Frozen POS' = frozen_tablet,
+       'Inventory missing' = inventory_issues,
+       'Label printer' = label_printer,
+       'Network' = network_issues,
+       'No issues' = no_issues,
+       'Pinpad' = pinpad,
+       'Polling' = polling,
+       'No power' = power_issues_dock_tablet_and_devices,
+       'Receipt printer' = receipt_printer,
+       'Scanner' = scanner,
+       'Slow register' = slow_register,
+       'Stuck payment' = stuck_payment,
+       'Replaced'= replaced,
+       'GV' = gv)
+
+O <- total_oct %>% 
+  select(-c('store', 'updated_on','total_sum_of_issues_per_store')) %>%
+           mutate(GV = unlist(GV),
+                  Replaced = unlist(Replaced)) %>% 
+  pivot_longer(-install_date, names_to = 'issues',values_to = 'count') %>% 
+  
+  ggplot() +
+  aes(x = 1, y = count, fill = issues)+
+  geom_bar(stat = 'identity', position = 'stack',color ='black', width = 10000)+
+  theme_void()+
+  coord_flip()+
+  scale_fill_manual(values = c('#003f5c','#2f4b7c','#665191','#a05195','#d45087','#f95d6a','#ff7c43','#ffa600',
+                               '#d94600','#8c6500','#4312ff','#f24400','#718d00','#009866','#0894a1','#326500'))+
+  coord_polar("y", start=0)+
+  
+  theme(
+        axis.text.y = element_blank(),
+        axis.text.x = element_blank(),
+        legend.position = 'bottom',
+        plot.title = element_text(color="black", size=20, face="bold.italic", hjust = -0.5))
+
+print(O)
+
+```
+
+## Issues
+
+Issue                             | Count
+--------------------------------- | -------
+Dock not recognizing peripherals  |  130
+Network                           |  10
+BSOD                              |  2
+Pinpad                            |  29
+Polling                           |  40
+Scanner                           |  13
+No power                          |  2
+Frozen POS                        |  18
+Stuck payment                     |  199
+Label printer                     |  44
+Slow register                     |  1
+Inventory missing                 |  4
+Receipt printer                   |  20
+No issues                         |  18
+GV                                |  28
+Hardware replacements             |  11
+--------------------------------- | ------
+Total Issues                      |  492
+Total installed stores            |  136
+
+
+
+\pagebreak
+\newpage
+
+
+## Replacements
+
+Store | Hardware replaced | Cause                                  | INC
+----- | ----------------- | -------------------------------------- | -------------
+624   | Case for R1 & R2  | No Ethernet lights on the dock         | INC36652075
+648   | R1 & R2 tablets   | PUR not showing on transactions        | INC36504781   
+5107  | Dock R1           | Dock not responding to any peripherals | INC36680177
+6472  | R1 tablet         | Frozen tablet & no network             | INC36515255
+995   | R1 Tablet         | BSOD                                   | INC37017281
+2270  | R1 Dock           | Dock not connecting to the network     | INC36829594 
+5249  | R2 Dock           | Dock not connecting to the network     | INC37024279
+4412  | R1 Dock           | Dock not recognizing the peripherals   | INC37379737
+3711  | R2 Dock           | Dock not connecting to the network     | INC36705066
+2917  | R2 Dock           | Dock not connecting to the network     | INC37455319
+826   | R1 Dock           | Dock not connecting to the network     | INC35872221
+
+## Escalations
+
+Store | Issue                                        | GV escalation reason                                         | INC
+----- | -------------------------------------------- | ------------------------------------------------------------ | -----------------
+ 3345 | Dock not responding to peripherals           | After all the TS the dock did not respond                    | INC35943952
+ 1620 | Transaction is taking long to end            | Escalated for reporting reasons                              | INC36281531
+ 1620 | Scanned SKU's are not appearing              | Escalated after all TS was performed                         | INC36771612
+ 1620 | R1 was rebooting by itself                   | Escalated because it was R1                                  | INC37262165
+ 3711 | Dock not responding at network               | Escalated after all TS was performed, this dock was replaced | INC36705066
+ 3750 | Receipt printer offline                      | This was the first issue resolved with the TU-S9 driver      | INC36117873
+ 5249 | Dock not responding at network               | Escalated after all TS was performed, this dock was replaced | INC36193898
+ 826  | Dock not responding at network               | Escalated, LVL 2 had to replace R2 after all TS did not work | INC35872221
+ 826  | ER1 was not polling                          | Escalated after all TS was not working                       | INC36111688
+ 2270 | Inventory was missing completely             | We escalated this and LVL 2, LVL 2 had to fix commands 2 & 5 | INC35876313
+ 870  | Other store inventories no appearing         | We did not know how to fix the issue at the time             | INC36462005 
+ 995  | BSOD                                         | Escalated to get a replacement of R1 tablet                  | INC37017281
+ 6472 | Frozen & crashing R1 register                | Escalated so LVL 2 could fix the surface codes               | INC36515255 
+ 6472 | Dock not responding to peripherals           | After all the TS the dock did not respond                    | INC36671490 
+ 5107 | Dock not responding to peripherals           | After all the TS the dock did not respond                    | INC36680177 
+ 648  | PUR not being recognized on the transactions | The TS did not work and LVL 2 had to replace Tablet 1 & 2    | INC36504781 
+ 3994 | Stuck payment on R1                          | This is a known issue so we escalated to LVL 2               | INC37050139
+ 7527 | PUR new customers are not being added        | Escalated to LVL 2 and they created a Cherwell #: 1973486    | INC36504832
+ 567  | Label printer not responding                 | LP2824 normally has issues with the surface                  | INC36267516
+ 624  | No Ethernet lights on the dock               | After all the TS the dock did not respond                    | INC36652075
+ 2786 | No Ethernet lights on the dock               | After all the TS the dock did not respond                    | INC37190717
+ 
+ 
+\pagebreak
+\newpage
+
+
+# Stores installed on November
+
+
+
+
+```{r November plot}
+
+
+issue <- read_sheet('docs.google.com/spreadsheets/d/1MPzKbtO-_N2hDJONArWLV0Mo8O-l4On1dwU5i7KscD0/edit#gid=0') #The actual sheet
+nov_data <- read_sheet('https://docs.google.com/spreadsheets/d/1MPzKbtO-_N2hDJONArWLV0Mo8O-l4On1dwU5i7KscD0/edit#gid=1126889633'
+                       ,sheet = 5 ) 
+
+  
+total_nov <-nov_data %>% 
+  na.omit() %>% 
+  janitor::clean_names() %>% 
+rename(
+       'BSOD' = blue_screen_of_death,
+       'Dock not recognizing peripherals' = dock_issues_not_recognizing_peripherals,
+       'Frozen POS' = frozen_tablet,
+       'Inventory missing' = inventory_issues,
+       'Label printer' = label_printer,
+       'Network' = network_issues,
+       'No issues' = no_issues,
+       'Pinpad' = pinpad,
+       'Polling' = polling,
+       'No power' = power_issues_dock_tablet_and_devices,
+       'Receipt printer' = receipt_printer,
+       'Scanner' = scanner,
+       'Slow register' = slow_register,
+       'Stuck payment' = stuck_payment,
+       'Replaced'= replaced,
+       'GV' = gv)
+
+N <- total_nov %>% 
+  select(-c('store', 'updated_on','total_sum_of_issues_per_store')) %>%
+           mutate(GV = unlist(GV),
+                  Replaced = unlist(Replaced)) %>% 
+  pivot_longer(-install_date, names_to = 'issues',values_to = 'count') %>% 
+  
+  ggplot() +
+  aes(x = 1, y = count, fill = issues)+
+  geom_bar(stat = 'identity', position = 'stack',color ='black', width = 10000)+
+  theme_void()+
+  coord_flip()+
+  scale_fill_manual(values = c('#003f5c','#2f4b7c','#665191','#a05195','#d45087','#f95d6a','#ff7c43','#ffa600',
+                               '#d94600','#8c6500','#4312ff','#f24400','#718d00','#009866','#0894a1','#326500'))+
+  coord_polar("y", start=0)+
+  
+  theme(
+        axis.text.y = element_blank(),
+        axis.text.x = element_blank(),
+        legend.position = 'bottom',
+        plot.title = element_text(color="black", size=20, face="bold.italic", hjust = -0.5))
+
+
+print(N)
+
+
+
+```
+
+## issues
+
+Issue                             | Count
+--------------------------------- | -------
+Dock not recognizing peripherals  |  7
+Network                           |  0
+BSOD                              |  0
+Pinpad                            |  0
+Polling                           |  2
+Scanner                           |  0
+No power                          |  1
+Frozen POS                        |  1
+Stuck payment                     |  1
+Label printer                     |  0
+Slow register                     |  0
+Inventory missing                 |  0
+Receipt printer                   |  0
+No issues                         |  1
+GV                                |  1
+Hardware replacements             |  1
+--------------------------------- | ------
+Total Issues                      |  12
+Total installed stores            |  5
+
+\pagebreak
+\newpage
+
+## Replacements
+
+Store | Hardware replaced | Cause                                  | INC
+----- | ----------------- | -------------------------------------- | -------------
+3799  | R1 Dock           | No Ethernet lights on the dock         | INC35873919 
+
+In November we only installed 5 stores (around 10 docks in total) from which only 1/10 docks were not working (10%).  
+
+Docks are presenting a lot of synchronization issues with the surface tablets. 
+
+We are aware of the TS when a surface does not have lights on the dock, but even after performing it, the docks are still presenting a lot of problems. They are not connecting properly to the registers. 
+
+## Escalations
+
+On the following table we have the enlisted issues escalated to GV and the reason behind this escalations.
+
+
+Store | Issue                                   | GV escalation reason                       | INC
+----- | --------------------------------------  | ------------------------------------------ | -----------------
+3799  | No Ethernet lights on the dock          | After all known TS the dock didn't respond | INC35873919 
+
+We are aware of the TS when a surface does not have lights on the dock, but, even with this the docks are having a lot of problems, they are not connecting correctly to the registers.
+
+
+\pagebreak
+\newpage
+
+# Stores installed on December
+
+
+```{r December plot}
+
+issue <- read_sheet('docs.google.com/spreadsheets/d/1MPzKbtO-_N2hDJONArWLV0Mo8O-l4On1dwU5i7KscD0/edit#gid=0') #The actual sheet
+dic_data <- read_sheet('https://docs.google.com/spreadsheets/d/1MPzKbtO-_N2hDJONArWLV0Mo8O-l4On1dwU5i7KscD0/edit#gid=1126889633'
+                       ,sheet = 7 ) 
+
+  
+total_dic <- dic_data %>% 
+  na.omit() %>% 
+  janitor::clean_names() %>% 
+rename(
+       'BSOD' = blue_screen_of_death,
+       'Dock not recognizing peripherals' = dock_issues_not_recognizing_peripherals,
+       'Frozen POS' = frozen_tablet,
+       'Inventory missing' = inventory_issues,
+       'Label printer' = label_printer,
+       'Network' = network_issues,
+       'No issues' = no_issues,
+       'Pinpad' = pinpad,
+       'Polling' = polling,
+       'No power' = power_issues_dock_tablet_and_devices,
+       'Receipt printer' = receipt_printer,
+       'Scanner' = scanner,
+       'Slow register' = slow_register,
+       'Stuck payment' = stuck_payment,
+       'Replaced'= replaced,
+       'GV' = gv)
+
+D <- total_dic %>% 
+  select(-c('store', 'updated_on','total_sum_of_issues_per_store')) %>%
+           mutate(GV = unlist(GV),
+                  Replaced = unlist(Replaced)) %>% 
+  pivot_longer(-install_date, names_to = 'issues',values_to = 'count') %>% 
+  
+  ggplot() +
+  aes(x = 1, y = count, fill = issues)+
+  geom_bar(stat = 'identity', position = 'stack',color ='black', width = 10000)+
+  theme_void()+
+  coord_flip()+
+  scale_fill_manual(values = c('#003f5c','#2f4b7c','#665191','#a05195','#d45087','#f95d6a','#ff7c43','#ffa600',
+                               '#d94600','#8c6500','#4312ff','#f24400','#718d00','#009866','#0894a1','#326500'))+
+  coord_polar("y", start=0)+
+  
+  theme(
+        axis.text.y = element_blank(),
+        axis.text.x = element_blank(),
+        legend.position = 'bottom',
+        plot.title = element_text(color="black", size=20, face="bold.italic", hjust = -0.5))
+
+print(D)
+
+```
+
+## Issues 
+
+Issue                             | Count
+--------------------------------- | -------
+Dock not recognizing peripherals  |  6
+Network                           |  11
+BSOD                              |  0
+Pinpad                            |  7
+Polling                           |  27
+Scanner                           |  3
+No power                          |  6
+Frozen POS                        |  4
+Stuck payment                     |  31
+Label printer                     |  25
+Slow register                     |  0
+Inventory missing                 |  0
+Receipt printer                   |  9
+No issues                         |  2
+GV                                |  5
+Hardware replacements             |  1
+--------------------------------- | ------
+Total Issues                      |  129
+Total installed stores            |  26
+
+\pagebreak
+\newpage
+
+## Replacements 
+
+Store | Hardware replaced | Cause                                  | INC
+----- | ----------------- | -------------------------------------- | -------------
+2582  | R2 Tablet         | The tablet was not rotating            | INC37514659
+
+
+In December we installed 26 stores and got just one dock replaced.  
+
+## Escalations 
+
+On the following table we have the number of issues escalated to GV and the reason behind this escalations.
+
+
+Store | Issue                                   | GV escalation reason                       | INC
+----- | --------------------------------------  | ------------------------------------------ | -----------------
+ 5988 | Unable to open chats from the task bar  | Known issue escalated for report reasons   | INC37147688
+ 3184 | Unable to see other store inventory     | Known issue escalated for report reasons   | INC37137165
+ 7743 | Transaction taking longer than expected | Known issue escalated for report reasons   | INC37355884
+ 
+For this issues now we have a workaround or a solution:
+
+1- Unable to open chats from the task bar - LVL 3 fixed it.
+
+2.-Unable to see other store inventory    - LVL 2 helped us figure this one out, the issue was that when we were installing the registers we had to put the correct time of the store before polling, if the time was incorrect and we polled the store all the inventory of other stores was unavailable & the BOPS box on the task bar was not updating.
+
+\pagebreak
+\newpage
+
+# Stores installed on January
+
+```{r January plot}
+
+issue <- read_sheet('docs.google.com/spreadsheets/d/1MPzKbtO-_N2hDJONArWLV0Mo8O-l4On1dwU5i7KscD0/edit#gid=0') #The actual sheet
+jan_data <- read_sheet('https://docs.google.com/spreadsheets/d/1MPzKbtO-_N2hDJONArWLV0Mo8O-l4On1dwU5i7KscD0/edit#gid=1126889633'
+                       ,sheet = 9 ) 
+
+  
+total_jan <- jan_data %>% 
+  na.omit() %>% 
+  janitor::clean_names() %>% 
+rename(
+       'BSOD' = blue_screen_of_death,
+       'Dock not recognizing peripherals' = dock_issues_not_recognizing_peripherals,
+       'Frozen POS' = frozen_tablet,
+       'Inventory missing' = inventory_issues,
+       'Label printer' = label_printer,
+       'Network' = network_issues,
+       'No issues' = no_issues,
+       'Pinpad' = pinpad,
+       'Polling' = polling,
+       'No power' = power_issues_dock_tablet_and_devices,
+       'Receipt printer' = receipt_printer,
+       'Retech/BO not opening' = retech_back_office_not_opening,
+       'Taskbar chat' = unable_to_open_chat_on_the_task_bar,
+       'Stuck payment' = stuck_payment,
+       'Replaced'= replaced,
+       'GV' = gv)
+
+J <- total_jan %>% 
+  select(-c('store', 'updated_on','total_sum_of_issues_per_store')) %>%
+           mutate(GV = unlist(GV),
+                  Replaced = unlist(Replaced)) %>% 
+  pivot_longer(-install_date, names_to = 'issues',values_to = 'count') %>% 
+  
+  ggplot() +
+  aes(x = 1, y = count, fill = issues)+
+  geom_bar(stat = 'identity', position = 'stack',color ='black', width = 10000)+
+  theme_void()+
+  coord_flip()+
+  scale_fill_manual(values = c('#003f5c','#2f4b7c','#665191','#a05195','#d45087','#f95d6a','#ff7c43','#ffa600',
+                               '#d94600','#8c6500','#4312ff','#f24400','#718d00','#009866','#0894a1','#326500'))+
+  coord_polar("y", start=0)+
+  
+  theme(
+        axis.text.y = element_blank(),
+        axis.text.x = element_blank(),
+        legend.position = 'bottom',
+        plot.title = element_text(color="black", size=20, face="bold.italic", hjust = -0.5))
+
+print(J)
+
+```
+
+## Issues 
+
+Issue                             | Count
+--------------------------------- | -------
+Dock not recognizing peripherals  |  98
+Network                           |  9
+BSOD                              |  4
+Pinpad                            |  9
+Polling                           |  26
+Taskbar Chat                      |  5
+No power                          |  7
+Frozen POS                        |  13
+Stuck payment                     |  147
+Label printer                     |  32
+Retech/BO not opening             |  5
+Inventory missing                 |  5
+Receipt printer                   |  13
+No issues                         |  83
+GV                                |  26
+Hardware replacements             |  1
+--------------------------------- | ------
+Total Issues                      |  373
+Total installed stores            |  257
+
+\pagebreak
+\newpage
+
+## Replacements
+
+Store | Hardware replaced | Cause                                                               | INC
+----- | ----------------- | ------------------------------------------------------------------- | -------------
+2873  | R2 Dock           | The tablet was not connecting to the network                        | INC37531096
+2820  | R2 Tablet         | The tablet was restarting by itself and flickering                  | INC37359337 
+2248  | Case R1           | The tablet was not connecting to the actual dock                    | INC37401799 
+2248  | R2 Tablet         | R2 had BSOD so it needed to be replaced                             | INC37745863 
+2776  | USB HUB           | Dead USB port on R1 we sent an USB hub                              | INC37871632
+2248  | Dock R2           | The register was not recognizing peripherals                        | INC37393345 
+5343  | R1 Dock           | The register was not recognizing peripherals                        | INC37379686
+3911  | R1 Dock           | The register was not recognizing peripherals                        | INC37871319 
+2708  | R1 Dock           | The register was not recognizing peripherals                        | INC37863594 
+2373  | R1 Dock           | The register was not recognizing peripherals                        | INC37478919
+6722  | R2 Dock           | The register was not recognizing peripherals                        | INC37634482 
+5269  | R2 Dock           | The register was not recognizing peripherals                        | INC37532331
+4323  | R2 Dock           | The register was not recognizing peripherals                        | INC37550933 
+2373  | R2 Dock           | The register was not recognizing peripherals                        | INC37474020
+2396  | R2 Tablet         | Blue screen of death                                                | INC37860538
+3027  | R2 Tablet         | Screen flickering, unable to read content                           | INC37790416 
+924   | R2 Tablet         | The tablet had an issue with the imaging at the time of the install | INC37488153
+924   | R1 tablet         | The tablet was not getting charged with the dock or the charger     | INC37958552
+4649  | R2 Tablet         | C:\\UTIL\\RECOVERY.EXE was not available                            | INC37774660  
+
+## Escalations 
+
+Store | Issue                                      | GV escalation reason                                                   | INC
+----- | ------------------------------------------ | ---------------------------------------------------------------------- | -------------
+2681  | Peripherals not getting recognized         | We did the TS and it did not work, GV fixed it                         | INC37582970
+2407  | Receipt printer was not getting recognized | We did the TS, GV fixed it with the 7zip file                          | INC37576860
+5343  | Dock not recognizing peripherals           | We did the TS and it did not work, GV had to replace it                | INC37379686
+5766  | Unable to open chats from the task bar     | Escalated for report reasons, Issue fixed                              | INC37401022 
+2820  | R2 restarting by itself                    | This register needed a replacement                                     | INC37359337 
+2248  | R2 dock was not connecting to peripherals  | After the TS we had to escalate the issue                              | INC37393345 
+2248  | R1 was not connecting to the network       | We TS the register and it was not connecting to the network            | INC37401799 
+2248  | R2 had a BSOD                              | After BSOD we escalated to have the register replaced                  | INC37745863 
+2708  | Unable to open chats from the task bar     | Escalated for report reasons, Issue fixed                              | INC37863594 
+7624  | Scanner not getting recognized on R1       | After all TS the scanner was not working, GV fixed it                  | INC37404635 
+889   | Unable to see other stores inventories     | The hour change did not work so we escalated it, GV fixed it           | INC37434224 
+2373  | Ship.mdb corrupted, inventory missing      | After repairing the DB inventory was still missing, GV fixed it        | INC37560712 
+6674  | Peripherals not getting recognized         | After all TS we escalated to LVL 2, GV is working with it              | INC37815269 
+3193  | Surfaces are lagging, R2 remains lagged    | After TS R1 got fixed but R2 is still slow and lagging                 | INC37495479 
+3027  | R2 screen is flickering                    | This register needed to be replaced we escalated for authorizations    | INC37790416 
+5269  | Peripherals not responding                 | After all TS the dock was not working, GV asked for a replacement      | INC37532331 
+6471  | PUR - unable to sell or make transactions  | We did not know that the time also affected the PUR trans, GV fixed it | INC37532306
+924   | Not polling automatically                  | We activated all services, no success, GV escalated to LVL 3 - fixed   | INC37525474 
+924   | R1 not charging even with charger          | R1 was not charging at all, LVL2 asked to replace it                   | INC37958552 
+4649  | R2 tablet was not finding RU               | No TS for this issue, LVL 2 asked for replacement                      | INC37774660 
+4760  | Surface not auto rotating                  | This has a prb ID - 52632, Escalated for report reasons                | INC37664497 
+4876  | Re tech not loading, corrupted file        | LVL 1 & LVL 2 TS did not work, LVL 3 fixed it by changing the config   | INC37794491 
+6070  | Label printer not getting recognized       | After al TS the receipt printer was not printing, GV is working on it  | INC37620787 
+6722  | Dock not recognizing network               | All TS did not work, LVL 2 replaced the dock                           | INC37634482 
+
+\pagebreak
+\newpage
+
+# Stores installed on February
+
+```{r February}
+issue <- read_sheet('docs.google.com/spreadsheets/d/1MPzKbtO-_N2hDJONArWLV0Mo8O-l4On1dwU5i7KscD0/edit#gid=0') #The actual sheet
+feb_data <- read_sheet('https://docs.google.com/spreadsheets/d/1MPzKbtO-_N2hDJONArWLV0Mo8O-l4On1dwU5i7KscD0/edit#gid=1126889633'
+                       ,sheet = 11 ) 
+
+  
+total_feb <- feb_data %>% 
+  na.omit() %>% 
+  janitor::clean_names() %>% 
+rename(
+       'BSOD' = blue_screen_of_death,
+       'Dock not recognizing peripherals' = dock_issues_not_recognizing_peripherals,
+       'Frozen POS' = frozen_tablet,
+       'Inventory missing' = inventory_issues,
+       'Label printer' = label_printer,
+       'Network' = network_issues,
+       'No issues' = no_issues,
+       'Pinpad' = pinpad,
+       'Polling' = polling,
+       'No power' = power_issues_dock_tablet_and_devices,
+       'Receipt printer' = receipt_printer,
+       'Retech/BO not opening' = retech_back_office_not_opening,
+       'Taskbar chat' = unable_to_open_chat_on_the_task_bar,
+       'Stuck payment' = stuck_payment,
+       'Replaced'= replaced,
+       'GV' = gv)
+
+Fe <- total_feb %>% 
+  select(-c('store', 'updated_on','total_sum_of_issues_per_store')) %>%
+           mutate(GV = unlist(GV),
+                  Replaced = unlist(Replaced)) %>% 
+  pivot_longer(-install_date, names_to = 'issues',values_to = 'count') %>% 
+  
+  ggplot() +
+  aes(x = 1, y = count, fill = issues)+
+  geom_bar(stat = 'identity', position = 'stack',color ='black', width = 10000)+
+  theme_void()+
+  coord_flip()+
+  scale_fill_manual(values = c('#003f5c','#2f4b7c','#665191','#a05195','#d45087','#f95d6a','#ff7c43','#ffa600',
+                               '#d94600','#8c6500','#4312ff','#f24400','#718d00','#009866','#0894a1','#326500'))+
+  coord_polar("y", start=0)+
+  
+  theme(
+        axis.text.y = element_blank(),
+        axis.text.x = element_blank(),
+        legend.position = 'bottom',
+        plot.title = element_text(color="black", size=20, face="bold.italic", hjust = -0.5))
+
+print(Fe)
+
+
+
+```
+
+## Issues 
+
+Issue                             | Count
+--------------------------------- | -------
+Dock not recognizing peripherals  |  15
+Network                           |  1
+BSOD                              |  2
+Pinpad                            |  0
+Polling                           |  1
+Taskbar Chat                      |  0
+No power                          |  0
+Frozen POS                        |  4
+Stuck payment                     |  25
+Label printer                     |  14
+Retech/BO not opening             |  2
+Inventory missing                 |  4
+Receipt printer                   |  1
+No issues                         |  42
+GV                                |  6
+Hardware replacements             |  4
+--------------------------------- | ------
+Total Issues                      |  65
+Total installed stores            |  83
+
+
+\pagebreak
+\newpage
+
+## Replacements
+
+Store | Hardware replaced | Cause                                                               | INC
+----- | ----------------- | ------------------------------------------------------------------- | -------------
+4847  | R2 Dock           |  Dock was not recognizing anything even after the TS                | INC37767197
+6503  | R1 Dock           |  Dock was not recognizing anything even after the TS                | INC37683620
+6703  | R2 Tablet         |  Blue screen of death                                               | INC37882318 
+6728  | R1 Tablet         |  Screen was flickering                                              | INC37953621
+
+## Escalations 
+
+Store | Issue                                      | GV escalation reason                                                                                      | INC
+----- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------- | -------------
+5900  | Slow register, network issue               | After the slow TS was performed issue persisted, after escalation LVL2 stated that it was a network issue | INC37787684
+4847  | Dock not recognizing peripherals           | Dock was not recognizing anything even after the TS, we needed an approval to get it replaced             | INC37767197
+6503  | R1 Dock                                    | Dock was not recognizing anything even after the TS, we needed an approval to get it replaced             | INC37683620
+4684  | Inventory missing on all registers         | We escalated the INC so LVL 2 could ask for an inventory refreshment                                      | INC37834856
+4684  | PRP's not appearing at sales               | The store was unable to sell PRP's, Escalated so they could investigate the issue and fix it              | INC37883298
+6703  | R2 Tablet                                  | Blue screen of death, escalated to get a replacement                                                      | INC37882318    
+6728  | R1 Tablet                                  | Screen was flickering, escalated to get a replacement                                                     | INC37953621 
+
+
+\pagebreak
+\newpage
+
+# General analysis 
+
+
+```{r General plot,comment=NA, fig.width=7}
+
+num_oct <- total_oct %>% 
+  mutate(Replaced = unlist(Replaced),
+         GV = unlist(GV)) %>% 
+  select(c(-store,-install_date,-updated_on,-total_sum_of_issues_per_store))
+
+num_nov <- total_nov %>% 
+  mutate(Replaced = unlist(Replaced),
+         GV = unlist(GV)) %>% 
+  select(c(-store,-install_date, -updated_on,-total_sum_of_issues_per_store))
+
+num_dic <- total_dic %>% 
+  mutate(Replaced = unlist(Replaced),
+         GV = unlist(GV)) %>% 
+  select(c(-store,-install_date, -updated_on,-total_sum_of_issues_per_store))
+
+num_jan <- total_jan %>% 
+  mutate(Replaced = unlist(Replaced)) %>% 
+  select(c(-updated_on,-install_date,-store,-total_sum_of_issues_per_store))
+  
+num_feb <- total_feb %>% 
+  mutate(Replaced = unlist(Replaced)) %>% 
+         select(c(-store,-install_date,-updated_on,-total_sum_of_issues_per_store))
+
+general <- num_jan +num_dic +num_nov + num_oct + num_feb  
+
+Gen_plot <- reshape2::melt(general)
+
+Gen_plot %>% 
+ ggplot(aes(x = 1, value, fill = variable))+
+  theme_void()+
+  coord_flip()+
+  geom_bar(stat = 'identity', position = 'stack',color ='black')+
+  coord_polar("y", start=0)+
+  scale_fill_manual(values = c('#003f5c','#2f4b7c','#665191','#a05195','#d45087','#f95d6a','#ff7c43','#ffa600',
+                               '#d94600','#8c6500','#4312ff','#f24400','#718d00','#009866','#0894a1','#326500'))
+  
+
+
+```
+
+## Issues
+
+```{r Jan issues, ,comment=NA}
+   stargazer(Gen_plot, summary=FALSE, type="text", rownames = FALSE, labels=c(""))
+```
+
+The total amount of issues are:
+```{r General totals, comment=NA}
+
+general_final <- sum(num_jan +num_dic +num_nov + num_oct + num_feb)  
+  
+print(general_final)
+
+```
+Installed stores at 02/28/2021: 511
+
+If we get an average between issues and stores we would get a total of 2.6 issues per store in just 4 months
+
+
+## Replacements
+
+We’ve a total of 27 INC tickets regarding replacements. The most common reasons for these replacements are the following:  
+
+-**Docks not recognizing peripherals or not connecting to the network (18/27):**  It is the number one hardware malfunction reason. However, October had 50% of that replacement orders, this might be related to the not well optimized docks that we installed that month. 
+
+-**Blue Screen of Death:** We replaced 3 tablets that had BSOD. There was not an established TS that we could performed. The register was just restarting a lot by itself and, after that, it kept getting frozen on a blue screen with a windows error. 
+
+-**Tablet screen flickering:** We replaced 2 due to this issue. The tablet’s screen suddenly starts flickering and it is unreadable. There is no TS for this, replacement is the only viable solution.  
+
+## Escalations
+
+We proceed with a total of 61 Escalations to GV. We escalated the surface’s issues after we finish following the pertinent KB looking for solutions. Our escalation process is as follows: 
+
+1st. We acknowledge if the issue is a surface or an HP computer.
+2nd. We troubleshoot with the corresponding KB
+3rd. If the KB does not work we ask on the general team to see if something else can be done
+4th. If there are no answers or better methods the agent asks a more experienced agent on the surfaces, for example Saúl Velazquez or Pablo Hernandez
+5th. IFinally, if none of the option above work or they are not available, we escalate to GV. 
+
+Most common escalations:
+
+**Docks not recognizing peripherals or not connecting to the network:** We escalated 20/61 incidents due to this. Normally we try the cable trick at least 2 times, we also check the cables on the inside of the case, remove the tablet from the case and put it back in, if that does not work, we escalate the issue.  
+
+**PUR transactions are not able to be performed:** We tried by force polling, if that does not work, we proceed to escalate.
+
+**Surface not auto-rotating:**  We escalated this for report reasons. We already have a PRB ID 52632. We are not escalating this anymore; we just tell the users that LVL 3 is working on it.
+
+**ER1 not polling:** Every time a store has an emergency R1, they are unable to poll, we normally escalate this to see if LVL 2 is able to activate the services for the register to poll. 
+
+\pagebreak
+\newpage
+
+## Problems & solutions
+
+While new issues are reported, we start to find new ways to fix them. We noticed what may be triggering them and we are discovering new ones. 
+
+### New issues
+
+**Registers are not able to close at night after the installation:** This problem is not on the graphs because it happens to every store that gets a surface installed and that would get us incorrect proportions. We noticed that when we install a new surface, store.ini is changing the tab [Systems], all registers are changed to closed instead of Down.
+
+For example:
+
+![Store 3377 installed 02/25/2021](img\Register_closed.png)
+
+As we can see on figure 1, the [System] tab is changing the Down registers to closed and for some reason R1 is closed but R2 is open.
+
+The problem with this is that when the store closes we have the following message:
+
+![Closed-Error message](img\Closed1.png)
+
+To solve this issue we have to open RU - and force close all auxiliary registers from R1, after our fix, the register does not present this issue again.
+
+
+\pagebreak
+\newpage
+
+**New RU FO is setting the IP of the computer to .10 instead of .12:** We noticed that when we are on the step of turning ER1 to R2, if we use the New RU, it always turns the IP from .11 to .10 instead of .12, for the moment we are using the old RU.
+
+![RU IP=.10](img\IP0.png)
+
+The work around for this issue, in case we use the new RU, is to remote to the register with .10, after that we have to change the IP of the computer to .12, then change the name of the computer from usa0xxxx-0 to usa0xxxx-2, and finally restart the computer.
+
+When the register reboots back, we are able to perform the FB, after the FB we were getting an error when the register loaded Retech.
+
+To fix the re tech issue we have to open the register.ini file, where we can visualize the register number ="", in which we must input the number 2 and restart the register. This fixes the issue. 
+
+The issue with this is that the store's register 2 has connectivity issues until the register poll. The POSA error appears and we have to perform a series of TS for it to work again.
+
+### Issues getting resolved by escalations teams
+
+**Tablet software not rotating when the user rotates the tablet for the customer to see the purchase:** This issue was escalated as a reporting issue. Currently, when a user calls about regarding this issue, we give them the PRB ID 52632.
+
+**Tablet erasing the IP address and not accepting it back:** The tablet is connected properly to the network, but the IP is not getting saved; nor manual nor automatic input works.  This is a known issue, which LVL 2 is aware of. INC38033675 is one of the examples. .
+
+**Emergency R1 are not polling automatically:**  When a R1 gets replaced we must make a FO. The problem is that when we have an ER1 the store is not able to poll automatically. Consequently, we must activate the remote link client service and set it to automatic, then we poll the register. The escalation group is aware of this.
+
+
+\pagebreak
+\newpage
+
+### Issues that we know how to fix
+
+**Inventory is unable to be seen on the register:** This happened during the October installations. After some escalations to LVL 2, we noticed that the cause for this issue was that the hour was not accurate. This caused a malfunction on the synchronization process of the register; also, it was giving an error message on the BOPS icon on the task bar.
+
+To fix this we changed our surface installation guide, before we force poll we are changing the hour and the time zone of the surface to be as accurate as possible, the issue should not happen on the surface anymore, if it happens, normally we escalate it.
+
+
+**PUR transactions are unable to be performed:** This is one of the must frequent issues on the surfaces. We noticed that the incorrect time zone is triggering it. However, this issue should not happen after the installation. To fix it we change the time zone and time on the surface, then we restart the register. In case that this doesn’t work we escalate the issue.
+
+
+**Unable to see the kronos scheduler:**Master Cherwell Ticket #1966693 (10/27/2020) - We just have to open kronos from back office instead of the OKTA dashboard.
+
+\pagebreak
+\newpage
+
+# Stuck payment Surface & HP comparison 
+
+
+For this report I compared the stuck payment INC's created from the surface installation until today & for the HP computers I started at 10/01/2019 until the surface was installed.
+
+I just performed this analysis for 195 stores, this stores were the ones with at least 1 stuck transaction in our raw data.
+
+```{r Stuck payments}
+
+stuckpay <- read_sheet('https://docs.google.com/spreadsheets/d/1MPzKbtO-_N2hDJONArWLV0Mo8O-l4On1dwU5i7KscD0/edit#gid=1126889633'
+                       ,sheet = 12 ) 
+
+stuckpayments <- stuckpay %>% 
+  na.omit() %>% 
+  janitor::clean_names() %>% 
+  rename('Stuck payments surface'= stuck_payment,
+         'Stuck payments HP'= stuck_payment_hp_r1_r2)
+
+
+
+
+pay_plot <- stuckpayments %>% 
+  select(-install_date) %>% 
+  pivot_longer(-store, names_to = 'Issues',values_to = 'Count') %>% 
+  
+  ggplot()+
+  aes(x = Issues, y = Count, fill = Issues)+
+  geom_bar(stat = 'identity', position = 'stack')+
+  theme_minimal()+
+  coord_flip()+
+  coord_polar("y", start=0)+
+  scale_fill_manual(values = c('#000000','#FD0000'))+
+  theme(axis.text.y = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank())+
+  labs(title="Stuck payments Surface & HP comparisson",
+       caption="Source: Service Now")
+
+  print(pay_plot)
+
+```
+
+
+
+```{r Final values}
+
+num_hp <- stuckpayments %>% 
+  janitor::clean_names() %>% 
+  select(c(-store,-install_date,-stuck_payments_surface))
+
+HP <- sum(num_hp)
+
+num_surf <- stuckpayments %>% 
+  janitor::clean_names() %>% 
+  select(c(-store,-install_date,-stuck_payments_hp))
+
+Surface <- sum(num_surf)
+
+Values =(c(HP,Surface))
+
+```
+
+We have a total of `r HP ` for the HP computers & a total of `r Surface ` for the surfaces, as you can see this is more than double the amount of issues betwwen both
+
